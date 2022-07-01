@@ -11,6 +11,7 @@ const inputElevation = document.querySelector('.form__input--elevation');
 class Workout {
   id = (Date.now() + '').slice(-10);
   date = new Date();
+  clicks = 0;
 
   constructor(coords, distance, duration) {
     this.coords = coords; //[lat, lng]
@@ -22,6 +23,10 @@ class Workout {
     // prettier-ignore
     const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     this.description = `${this.constructor.name[0].toLocaleUpperCase()}${this.constructor.name.slice(1)} on ${months[this.date.getMonth()]} ${this.date.getDate()}`;
+  }
+
+  click() {
+    this.clicks++;
   }
 }
 
@@ -63,11 +68,13 @@ class App {
   #map;
   #mapEvent;
   #workouts = [];
+  #zoomLevel = 13;
 
   constructor() {
     this._getPosition();
     form.addEventListener('submit', this._newWorkout.bind(this));
     inputType.addEventListener('change', this._toggleElevationField);
+    containerWorkouts.addEventListener('click', this._moveToPopup.bind(this));
   }
 
   _getPosition() {
@@ -82,7 +89,7 @@ class App {
     const { latitude, longitude } = position.coords;
     //   console.log(`https://www.google.pt/maps/@${latitude},${longitude}`);
     const coords = [latitude, longitude];
-    this.#map = L.map('map').setView(coords, 13); //13 - zoom
+    this.#map = L.map('map').setView(coords, this.#zoomLevel); //13 - zoom
 
     //   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     /*    
@@ -207,6 +214,17 @@ class App {
     }
 
     containerWorkouts.insertAdjacentHTML('beforeend', html);
+  }
+
+  _moveToPopup(e) {
+    const workoutEl = e.target.closest('.workout');
+    if (!workoutEl) return;
+
+    const workout = this.#workouts.find(workout => workout.id === workoutEl.dataset.id);
+
+    this.#map.setView(workout.coords, this.#zoomLevel, { animate: true, pan: { duration: 1 } });
+
+    workout.click();
   }
 }
 
