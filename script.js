@@ -22,7 +22,7 @@ class Workout {
   _setDescription() {
     // prettier-ignore
     const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    this.description = `${this.constructor.name[0].toLocaleUpperCase()}${this.constructor.name.slice(1)} on ${months[this.date.getMonth()]} ${this.date.getDate()}`;
+    this.description = `${this.type[0].toLocaleUpperCase()}${this.type.slice(1)} on ${months[this.date.getMonth()]} ${this.date.getDate()}`;
   }
 
   click() {
@@ -31,6 +31,7 @@ class Workout {
 }
 
 class Running extends Workout {
+  type = 'running';
   constructor(coords, distance, duration, cadence) {
     super(coords, distance, duration);
     this.cadence = cadence;
@@ -45,6 +46,7 @@ class Running extends Workout {
 }
 
 class Cycling extends Workout {
+  type = 'cycling';
   constructor(coords, distance, duration, elevationGain) {
     super(coords, distance, duration);
     this.elevationGain = elevationGain;
@@ -72,6 +74,7 @@ class App {
 
   constructor() {
     this._getPosition();
+    this._getLocalStorage();
     form.addEventListener('submit', this._newWorkout.bind(this));
     inputType.addEventListener('change', this._toggleElevationField);
     containerWorkouts.addEventListener('click', this._moveToPopup.bind(this));
@@ -103,6 +106,10 @@ class App {
     }).addTo(this.#map);
 
     this.#map.on('click', this._showForm.bind(this));
+
+    this.#workouts.forEach(workout => {
+      this._renderWorkoutMarker(workout);
+    });
   }
 
   _showForm(mapE) {
@@ -155,22 +162,24 @@ class App {
     this._renderWorkout(workout);
 
     this._hideForm();
+
+    this._setLocalStorage();
   }
 
   _renderWorkoutMarker(workout) {
     L.marker(workout.coords)
       .addTo(this.#map)
-      .bindPopup(L.popup({ maxWidth: 250, minWidth: 100, autoClose: false, closeOnClick: false, className: `${workout.constructor.name.toLocaleLowerCase()}-popup` }))
-      .setPopupContent(`${workout.constructor.name === 'Running' ? '🏃‍♂️' : '🚴‍♀️'} ${workout.description}`)
+      .bindPopup(L.popup({ maxWidth: 250, minWidth: 100, autoClose: false, closeOnClick: false, className: `${workout.type}-popup` }))
+      .setPopupContent(`${workout.type === 'running' ? '🏃‍♂️' : '🚴‍♀️'} ${workout.description}`)
       .openPopup();
   }
 
   _renderWorkout(workout) {
     let html = `
-        <li class="workout workout--${workout.constructor.name.toLocaleLowerCase()}" data-id="${workout.id}">
+        <li class="workout workout--${workout.type}" data-id="${workout.id}">
           <h2 class="workout__title">${workout.description}</h2>
           <div class="workout__details">
-            <span class="workout__icon">${workout.constructor.name === 'Running' ? '🏃‍♂️' : '🚴‍♀️'}</span>
+            <span class="workout__icon">${workout.type === 'running' ? '🏃‍♂️' : '🚴‍♀️'}</span>
             <span class="workout__value">${workout.distance}</span>
             <span class="workout__unit">km</span>
           </div>
@@ -181,7 +190,7 @@ class App {
           </div>
     `;
 
-    if (workout.constructor.name === 'Running') {
+    if (workout.type === 'running') {
       html += `
           <div class="workout__details">
             <span class="workout__icon">⚡️</span>
@@ -197,7 +206,7 @@ class App {
       `;
     }
 
-    if (workout.constructor.name === 'Cycling') {
+    if (workout.type === 'cycling') {
       html += `
           <div class="workout__details">
             <span class="workout__icon">⚡️</span>
@@ -225,6 +234,29 @@ class App {
     this.#map.setView(workout.coords, this.#zoomLevel, { animate: true, pan: { duration: 1 } });
 
     workout.click();
+  }
+
+  _setLocalStorage() {
+    localStorage.setItem('workouts', JSON.stringify(this.#workouts));
+  }
+
+  _getLocalStorage() {
+    const data = JSON.parse(localStorage.getItem('workouts'));
+    if (!data) return;
+
+    data.forEach(workout => {
+      let obj;
+      if (workout.type === 'running') obj = new Running();
+      if (workout.type === 'cycling') obj = new Cycling();
+      Object.assign(obj, workout);
+      this.#workouts.push(obj);
+      this._renderWorkout(workout);
+    });
+  }
+
+  reset() {
+    localStorage.removeItem('workouts')
+    location.reload();
   }
 }
 
